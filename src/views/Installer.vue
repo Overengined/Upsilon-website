@@ -14,10 +14,46 @@
           <label for="select-channel"
             >{{ t('installer.releaseChannel') }}:</label
           >
-          <CustomSelect name="select-channel" id="select-channel">
-            <option value="beta">{{ t('installer.channels.beta') }}</option>
-            <option value="dev">{{ t('installer.channels.dev') }}</option>
+          <CustomSelect
+            name="select-channel"
+            sid="select-channel"
+            @updated="setChannel"
+            :title="t('installer.releaseChannel')"
+            :items="[
+              {
+                text: t('installer.channels.beta.title'),
+                id: 'beta',
+                description: t('installer.channels.beta.description')
+              },
+              {
+                text: t('installer.channels.dev.title'),
+                id: 'dev',
+                description: t('installer.channels.dev.description')
+              }
+            ]"
+          >
           </CustomSelect>
+          <label v-if="channel === 'beta'" for="select-theme"
+            >{{ t('installer.theme') }}:</label
+          >
+          <CustomSelect
+            v-if="channel === 'beta'"
+            name="select-theme"
+            sid="select-theme"
+            @updated="setTheme"
+            :title="t('installer.theme')"
+            :items="
+              themes.map((theme) => {
+                return {
+                  text: t('installer.themes.' + theme),
+                  imgSrc: './themes/' + theme + '.webp',
+                  id: theme
+                }
+              })
+            "
+          >
+          </CustomSelect>
+
           <label for="input-uname">{{ t('installer.username') }}:</label>
           <input
             maxlength="16"
@@ -40,7 +76,7 @@
             {{ t('installer.external') }}
             <a
               id="external-link"
-              href="https://lauryy06.github.io/Upsilon-External/"
+              href="https://upsilonnumworks.github.io/Upsilon-External/"
               target="_blank"
               rel="noopener noreferrer"
               >{{ t('installer.gothere') }}</a
@@ -66,7 +102,7 @@
   </div>
 </template>
 
-// TODO: Test on the N0100
+// TODO: Test on the N0100 (and fix because it doesn't even work.)
 
 <script>
 import { defineComponent } from 'vue'
@@ -89,11 +125,41 @@ export default defineComponent({
   },
   methods: {
     onload () {
-      onInstallerLoad(this.t)
+      onInstallerLoad(this.t, this)
+    },
+    setTheme (item) {
+      this.theme = item.id
+    },
+    setChannel (item) {
+      this.channel = item.id
+    }
+  },
+  data () {
+    return {
+      theme: 'upsilon_light',
+      channel: 'beta',
+      themes: [
+        'upsilon_light',
+        'upsilon_dark',
+        'epsilon_light',
+        'epsilon_dark',
+        'omega_light',
+        'omega_dark',
+        'arc_dark',
+        'miami_vice',
+        'omega_trans',
+        'omega_blink',
+        'omega_dracula',
+        'omega_kawaii',
+        'omega_shrek',
+        'cursed_light',
+        'omega_freenumworks',
+        'ahegao'
+      ]
     }
   }
 })
-function onInstallerLoad (t) {
+function onInstallerLoad (t, component) {
   const installForm = document.getElementById('install-form')
   const connectBtn = document.getElementById('btn-connect')
   const disconnectBtn = document.getElementById('btn-disconnect')
@@ -105,7 +171,6 @@ function onInstallerLoad (t) {
   const statusDisplay = document.getElementById('status-display')
   const doneMsg = document.getElementById('done-msg')
   const externalLink = document.getElementById('external-link')
-  const channelSelect = document.getElementById('select-channel')
 
   externalLink.onclick = () => {
     calculator.device.device_.close()
@@ -165,8 +230,13 @@ function onInstallerLoad (t) {
     install()
   })
   function onError (err) {
+    shouldRestoreStorage = false
     statusDisplay.innerHTML = t('installer.error') + ': ' + err.message
     statusDisplay.classList = ['error']
+
+    if (typeof err === 'string') {
+      err = { message: err }
+    }
 
     if (
       err.message.includes(
@@ -216,7 +286,17 @@ function onInstallerLoad (t) {
         '</a> ' +
         t('installer.hints.noDeviceSelected.moreHelp.2') +
         '</details>'
+    } else if (err.message.endsWith('????')) {
+      statusDisplay.innerHTML +=
+        '<br>' +
+        t('installer.e16.message') +
+        '<br>' +
+        t('installer.e16.beforeLink') +
+        ' <a href="https://tiplanet.org/forum/viewtopic.php?f=113&t=25191&p=263495#p263495">' +
+        t('installer.e16.link') +
+        '</a>'
     }
+    throw err
   }
   function setStatus (status) {
     console.log('Status set to', status)
@@ -331,7 +411,6 @@ function onInstallerLoad (t) {
     }
   }
   async function install () {
-    // Install Upsilon on the calculator
     try {
       await initInstall()
       const model = calculator.getModel()
@@ -456,16 +535,22 @@ function onInstallerLoad (t) {
     // Function to download binary file that will be flashed on the calculator
     const mirror =
       'https://firebasestorage.googleapis.com/v0/b/upsilon-binfiles.appspot.com/o/'
-    let fwname = 'epsilon.onboarding.' + name + '.bin'
-    model = model.toLowerCase()
-    if (model === 'n0100') {
-      fwname = 'epsilon.onboarding.' + name + '.' + language + '.bin'
+
+    let fwname = ''
+    if (name !== 'flasher') {
+      fwname += 'epsilon.onboarding'
+      if (component.channel === 'beta') {
+        fwname += '.' + component.theme
+      }
+      if (model.toLowerCase() === 'n0100') {
+        fwname += '.' + language
+      }
+      fwname += '.' + name + '.bin'
+    } else {
+      fwname = 'flasher.light.bin'
     }
-    if (name === 'flasher') {
-      fwname = 'flasher.verbose.bin'
-    }
-    const jsonUrl = `${mirror}${channelSelect.value}%2F${
-      model === 'n0100' ? 'n100' : 'n110'
+    const jsonUrl = `${mirror}${component.channel}%2F${
+      model.toLowerCase() === 'n0100' ? 'n100' : 'n110'
     }%2F${fwname}`
     const binUrl = await getDownloadURL(jsonUrl)
     const shaUrl = await getDownloadURL(jsonUrl + '.sha256')
@@ -473,14 +558,7 @@ function onInstallerLoad (t) {
     console.log('Downloading ' + fwname)
     const bin = await downloadAsync('GET', binUrl, 'blob')
     const checksum = await downloadAsync('GET', shaUrl, 'text')
-
-    let binHashed
-    if (model === 'n0100') {
-      binHashed = (await hash(bin)) + ' *final-output/' + fwname + '\n'
-    } else {
-      binHashed = (await hash(bin)) + ' *binpack/' + fwname + '\n'
-    }
-    if (checksum === binHashed) {
+    if (checksum.substring(0, 64) === (await hash(bin))) {
       console.log('Bin file downloaded successfully')
       return bin.arrayBuffer()
     } else {
@@ -489,7 +567,7 @@ function onInstallerLoad (t) {
   }
 
   async function downloadAsync (method, url, responseType = 'blob') {
-    return fetch(url, { method: method }).then((response) => {
+    return fetch(url, { method: method }).then(async (response) => {
       if (response.status === 404) {
         const err = new Error()
         err.message = t('installer.download404')

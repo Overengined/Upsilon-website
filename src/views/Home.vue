@@ -89,7 +89,7 @@
         <Feature :title="t('features.external.name')">
           {{ t('features.external.description') }}
           <a
-            href="https://lauryy06.github.io/Upsilon-External/"
+            href="https://upsilonnumworks.github.io/Upsilon-External/"
             target="_blank"
             rel="noopener noreferrer"
             >{{ t('features.external.installNow') }}</a
@@ -100,20 +100,10 @@
         </Feature>
         <Feature :title="t('features.themes.name')">
           {{ t('features.themes.description') }}
-          <ul>
-            <li>Upsilon light</li>
-            <li>Omega light</li>
-            <li>Omega dark</li>
-            <li>Epsilon light</li>
-            <li>Epsilon dark</li>
-          </ul>
-          <a
-            href="https://github.com/Omega-Numworks-Prod/Omega-custom-theme-Listing"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ t('features.themes.andmanymore') }}
-          </a>
+
+          <router-link to="/doc/themes"
+            >{{ t('home.findThemeList') }}
+          </router-link>
         </Feature>
         <Feature :title="t('features.periodic.name')">
           {{ t('features.periodic.description') }}
